@@ -2,7 +2,7 @@
 
 #ifndef __DEBUG_timer
 #undef DEBUG
-#endif 
+#endif
 
 #include "types.h"
 #include "param.h"
@@ -36,10 +36,12 @@ set_next_timeout() {
 	// this bug seems to disappear automatically
 	// printf("");
 	// sbi_set_timer(r_time() + INTERVAL);
-	struct sbiret result = sbi_xv6_get_timer();
-	__debug_assert("set_next_timeout", SBI_SUCCESS == result.error, "SBI call failed");
-	result = sbi_set_timer(result.value + INTERVAL);
-	__debug_assert("set_next_timeout", SBI_SUCCESS == result.error, "SBI call failed");
+	// struct sbiret result = sbi_xv6_get_timer();
+	// __debug_assert("set_next_timeout", SBI_SUCCESS == result.error, "SBI call failed");
+	// result = sbi_set_timer(result.value + INTERVAL);
+	// __debug_assert("set_next_timeout", SBI_SUCCESS == result.error, "SBI call failed");
+	int value = r_time();
+	sbi_set_timer(value + INTERVAL);
 }
 
 void timer_tick() {

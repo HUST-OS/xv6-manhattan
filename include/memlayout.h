@@ -5,7 +5,6 @@
 
 // k210 peripherals
 // (0x0200_0000, 0x1000),      /* CLINT     */
-// // we only need claim/complete for target0 after initializing
 // (0x0C20_0000, 0x1000),      /* PLIC      */
 // (0x3800_0000, 0x1000),      /* UARTHS    */
 // (0x3800_1000, 0x1000),      /* GPIOHS    */
@@ -27,8 +26,8 @@
 // 00001000 -- boot ROM, provided by qemu
 // 02000000 -- CLINT
 // 0C000000 -- PLIC
-// 10000000 -- uart0 
-// 10001000 -- virtio disk 
+// 10000000 -- uart0
+// 10001000 -- virtio disk
 // 80000000 -- boot ROM jumps here in machine mode
 //             -kernel loads the kernel here
 // unused RAM after 80000000.
@@ -96,8 +95,8 @@
 
 // the kernel expects there to be RAM
 // for use by the kernel and user pages
-// from physical address 0x80020000 to PHYSTOP.
-#define KERNBASE 		0x80020000UL
+// from physical address 0x80200000 to PHYSTOP.
+#define KERNBASE                0x80200000UL
 
 #define PHYSTOP                 0x80600000UL
 

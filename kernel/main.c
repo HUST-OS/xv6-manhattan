@@ -7,6 +7,7 @@
 #include "param.h"
 #include "memlayout.h"
 #include "hal/riscv.h"
+#include "hal/uart.h"
 #include "sbi.h"
 #include "console.h"
 #include "printf.h"
@@ -20,13 +21,14 @@
 #include "hal/disk.h"
 #include "fs/buf.h"
 #include "utils/debug.h"
+
 #ifndef QEMU
 #include "hal/fpioa.h"
 #include "hal/dmac.h"
 #endif
 
 static inline void inithartid(unsigned long hartid) {
-	asm volatile("mv tp, %0" : : "r" (hartid & 0x1));
+    asm volatile("mv tp, %0" : : "r" (hartid & 0x1));
 }
 
 volatile static int started = 0;
@@ -34,55 +36,56 @@ volatile static int started = 0;
 void
 main(unsigned long hartid, unsigned long dtb_pa)
 {
-	inithartid(hartid);
-	
-	if (hartid == 0) {
-		started = 0;
-		cpuinit();
-		floatinithart();
-		consoleinit();
-		printfinit();   // init a lock for printf 
-		print_logo();
-		kpminit();       // physical page allocator
-		kvminit();       // create kernel page table
-		kvminithart();   // turn on paging
-		kmallocinit();   // small physical memory allocator
-		// timerinit();     // init a lock for timer
-		trapinithart();  // install kernel trap vector, including interrupt handler
-		procinit();
-		plicinit();
-		plicinithart();
-		#ifndef QEMU
-		fpioa_pin_init();
-		dmac_init();
-		#endif 
-		disk_init();
-		binit();         // buffer cache
-		// fileinit();      // file table
-		userinit();      // first user process
-		printf("hart 0 init done\n");
+    inithartid(hartid);
 
-		// we need IPI to wake up other hart(s)
-		for (int i = 1; i < NCPU; i ++) {
-			unsigned long mask = 1 << i;
-			struct sbiret res = sbi_send_ipi(mask, 0);
-			__debug_assert("main", SBI_SUCCESS == res.error, "sbi_send_ipi failed");
-		}
-		__sync_synchronize();
-		started = 1;
-	}
-	else
-	{
-		// hart 1
-		while (started == 0)
-			;
-		__sync_synchronize();
-		floatinithart();
-		kvminithart();
-		trapinithart();
-		plicinithart();  // ask PLIC for device interrupts
-		printf("hart 1 init done\n");
-	}
-	__debug_info("main", "hart %d enter main()...\n", hartid);
-	scheduler();
+    if (hartid == 0) {
+        started = 0;
+        cpuinit();
+        floatinithart();
+        consoleinit();
+        printfinit();   // init a lock for printf
+        print_logo();
+        kpminit();       // physical page allocator
+        kvminit();       // create kernel page table
+        kvminithart();   // turn on paging
+        kmallocinit();   // small physical memory allocator
+
+        // init devices
+        // timerinit();     // init a lock for timer
+        uart_init(115200);  // init UART
+        plicinit();
+        plicinithart();
+        trapinithart();  // install kernel trap vector, including interrupt handler
+        procinit();
+        #ifndef QEMU
+        fpioa_pin_init();
+        dmac_init();
+        #endif
+        disk_init();
+        binit();         // buffer cache
+        // fileinit();      // file table
+        userinit();      // first user process
+
+        // we need IPI to wake up other hart(s)
+        // for (int i = 1; i < NCPU; i ++) {
+        // 	unsigned long mask = 1 << i;
+        // 	struct sbiret res = sbi_send_ipi(mask, 0);
+        // 	__debug_assert("main", SBI_SUCCESS == res.error, "sbi_send_ipi failed");
+        // }
+        __sync_synchronize();
+        started = 1;
+    }
+    else
+    {
+        // hart 1
+        while (started == 0)
+            ;
+        __sync_synchronize();
+        floatinithart();
+        kvminithart();
+        trapinithart();
+        plicinithart();  // ask PLIC for device interrupts
+    }
+    __debug_info("main", "hart %d enter main()...\n", hartid);
+    scheduler();
 }

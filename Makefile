@@ -48,8 +48,8 @@ else
 endif
 
 # QEMU
-# CPUS := 2
-CPUS := 1
+CPUS := 2
+# CPUS := 1
 
 QEMUOPTS = -machine virt -kernel $T/kernel -m 6M -nographic
 
@@ -118,7 +118,8 @@ SRC	+= \
 	$K/utils/rbtree.c \
 	$K/utils/string.c \
 	$K/hal/plic.c \
-	$K/hal/disk.c
+	$K/hal/disk.c \
+	$K/hal/uart16550.c
 
 ifeq ($(platform), k210)
 SRC += \
