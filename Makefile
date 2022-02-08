@@ -27,10 +27,10 @@ CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -Iinclude/
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 
-ifeq ($(mode), debug) 
-CFLAGS += -DDEBUG 
+ifeq ($(mode), debug)
+CFLAGS += -DDEBUG
 CFLAGS += $(addprefix "-D__DEBUG_",$(module))
-endif 
+endif
 
 ifeq ($(platform), qemu)
 CFLAGS += -D QEMU
@@ -47,28 +47,28 @@ else
 	SBI	:= ./sbi/sbi-qemu
 endif
 
-# QEMU 
-CPUS := 2
+# QEMU
+# CPUS := 2
+CPUS := 1
 
 QEMUOPTS = -machine virt -kernel $T/kernel -m 6M -nographic
 
-# use multi-core 
+# use multi-core
 QEMUOPTS += -smp $(CPUS)
 
-QEMUOPTS += -bios $(SBI)
 
 # import virtual disk image
-QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0 
+QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 
 # Open GDB server at localhost:1234
 ifeq ($(mode), debug)
 	QEMUOPTS += -gdb tcp::1234
-endif 
+endif
 
 k210-serialport := /dev/ttyUSB0
 
-# entry file 
+# entry file
 SRC := $K/entry.S
 
 SRC	+= \
@@ -120,7 +120,7 @@ SRC	+= \
 	$K/hal/plic.c \
 	$K/hal/disk.c
 
-ifeq ($(platform), k210) 
+ifeq ($(platform), k210)
 SRC += \
 	$K/hal/spi.c \
 	$K/hal/gpiohs.c \
@@ -129,68 +129,39 @@ SRC += \
 	$K/hal/dmac.c \
 	$K/hal/sysctl.c \
 	$K/utils/utils.c
-else 
+else
 SRC += \
 	$K/hal/virtio_disk.c
-endif 
+endif
 
-# object files 
+# object files
 OBJ := $(basename $(SRC))
 OBJ := $(addsuffix .o, $(OBJ))
 
 
 # Generate binary file to burn onto k210
-all: $T/kernel $(SBI) 
-ifeq ($(platform), k210) 
+all: $T/kernel
+ifeq ($(platform), k210)
 	@$(OBJCOPY) $T/kernel --strip-all -O binary $T/kernel.bin
 	@$(OBJCOPY) $(SBI) --strip-all -O binary $T/k210.bin
 	@dd if=$T/kernel.bin of=$T/k210.bin bs=128k seek=1
 	cp $T/k210.bin ./k210.bin
-endif 
+endif
 
 # Compile Kernel
-$T/kernel: $(OBJ) 
+$T/kernel: $(OBJ)
 	@if [ ! -d "$T" ]; then mkdir $T; fi
 	@$(LD) $(LDFLAGS) -T $(linker) -o $@ $^
 	@$(OBJDUMP) -S $@ >$T/kernel.asm
 
-# Compile SBI 
-$(SBI): 
-	cd ./sbi/psicasbi && cargo build --no-default-features --features=$(platform)
-	cp ./sbi/psicasbi/target/riscv64imac-unknown-none-elf/$(mode)/psicasbi $@
-
-# explicitly compile SBI 
-sbi: 
-	cd ./sbi/psicasbi && cargo build --no-default-features --features=$(platform)
-	cp ./sbi/psicasbi/target/riscv64imac-unknown-none-elf/$(mode)/psicasbi $(SBI)
-
-# explicitly clean SBI 
-sbi-clean: 
-	cd ./sbi/psicasbi && cargo clean
-	rm $(SBI)
 
 run: all
-ifeq ($(platform), k210) 
+ifeq ($(platform), k210)
 	@sudo chmod 777 $(k210-serialport)
 	@python3 ./tools/kflash.py -p $(k210-serialport) -b 1500000 -t ./k210.bin
-else 
+else
 	$(QEMU) $(QEMUOPTS)
-endif 
-
-
-# # try to generate a unique GDB port
-# GDBPORT = $(shell expr `id -u` % 5000 + 25000)
-# # QEMU's gdb stub command line changed in 0.11
-# QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
-# 	then echo "-gdb tcp::$(GDBPORT)"; \
-# 	else echo "-s -p $(GDBPORT)"; fi)
-
-# .gdbinit: debug/.gdbinit.tmpl-riscv
-# 	sed "s/:1234/:$(GDBPORT)/" < $^ > $@
-
-# qemu-gdb: $T/kernel .gdbinit fs.img
-# 	@echo "*** Now run 'gdb' in another window." 1>&2
-# 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+endif
 
 
 # Compile user programs
@@ -275,9 +246,9 @@ sdcard: user
 	@sudo cp $U/_echo $(dst)/echo
 	@sudo cp README $(dst)/README
 
-.PHONY: clean run all fs sdcard user sbi sbi-clean
+.PHONY: clean run all fs sdcard user
 
-clean: 
+clean:
 	@rm -rf $(OBJ) $(addsuffix .d, $(basename $(OBJ))) \
 		target \
 		k210.bin \
